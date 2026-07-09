@@ -43,7 +43,7 @@ def read_root() -> str:
     the factory function) instead of a raw string. Notice this function has
     NO idea whether `provider` is AwsProvider, AzureProvider, GcpProvider, or
     LocalProvider - it only calls the two methods every provider guarantees:
-    get_provider_name() and get_metadata(). This is abstraction in action.
+    get_provider_name()  and get_metadata(). This is abstraction in action.
     """
     metadata = provider.get_metadata()
 
