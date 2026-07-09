@@ -1,10 +1,8 @@
 # =============================================================================
 # build.yml - REUSABLE workflow
 # =============================================================================
-# Builds the Docker image and pushes it to the container registry, tagged
-# with the commit SHA. This is CI's responsibility only - this repository
-# NEVER deploys anything; it only produces a trustworthy, tested artifact
-# (the image) for the deployment repository to later consume.
+# Builds the Docker image and pushes it to DOCKER HUB, tagged with the
+# commit SHA.
 
 name: Build and Push Image
 
@@ -15,18 +13,13 @@ on:
         description: "The full image reference that was pushed (registry/name:sha)"
         value: ${{ jobs.build.outputs.image_tag }}
     secrets:
-      REGISTRY_USERNAME:
+      DOCKERHUB_USERNAME:
         required: true
-      REGISTRY_TOKEN:
+      DOCKERHUB_TOKEN:
         required: true
-      # Reusable workflows do NOT automatically inherit the caller's secrets
-      # unless explicitly passed with `secrets: inherit` (or listed like
-      # this and passed individually) - declaring them here documents
-      # exactly what this workflow needs, which is good practice for
-      # auditability in an enterprise setting.
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cloud-agnostic-app
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/cloud-agnostic-app
 
 jobs:
   build:
@@ -38,12 +31,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push image
         uses: docker/build-push-action@v6
@@ -58,6 +50,3 @@ jobs:
       - name: Set output image tag
         id: set-tag
         run: echo "image_tag=${{ env.IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
-        # This SHA-tagged reference is the artifact ci.yml will hand off to
-        # the deployment repository - never "latest", for the same
-        # traceability reason discussed in the single-repo version.

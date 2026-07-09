@@ -11,9 +11,6 @@ name: Test
 
 on:
   workflow_call:
-    # Declaring `workflow_call` as a trigger (instead of `push` or
-    # `pull_request`) is what makes this workflow "reusable" - it exposes
-    # itself as a callable unit that ci.yml can invoke with `uses:`.
     outputs:
       tests_passed:
         description: "Whether the test suite passed"
