@@ -1,0 +1,64 @@
+# =============================================================================
+# ci.yml - ORCHESTRATOR workflow
+# =============================================================================
+# This is the only workflow that actually TRIGGERS on repository events.
+# Its entire job is to call the reusable building blocks (test.yml, then
+# build.yml) in the correct order, and stop. It never touches Kubernetes,
+# Terraform, or any cloud - deployment is strictly out of scope for this
+# repository, enforced structurally (there are no deploy-related workflows
+# here at all), not just by convention.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    # `uses: ./.github/workflows/test.yml` calls a reusable workflow that
+    # lives in THIS SAME repository. This is the workflow_call pattern in
+    # action - test.yml runs as its own isolated job, and ci.yml waits for
+    # its result before continuing.
+
+  build:
+    needs: test
+    uses: ./.github/workflows/build.yml
+    secrets:
+      REGISTRY_USERNAME: ${{ github.actor }}
+      REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # `needs: test` ensures build.yml only runs after test.yml succeeds -
+    # identical safety gate to the single-repo version, just expressed
+    # across reusable workflow calls instead of steps in one job.
+
+  notify-deploy-repo:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    # Only notify on actual pushes to main, not on pull requests - we don't
+    # want every PR to trigger a deployment-readiness signal.
+    steps:
+      - name: Trigger deployment repository
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.DEPLOY_REPO_PAT }}
+          repository: ${{ github.repository_owner }}/cloud-agnostic-deploy
+          event-type: app-image-built
+          client-payload: '{"image_tag": "${{ needs.build.outputs.image_tag }}", "commit_sha": "${{ github.sha }}"}'
+        # This is CI's LAST responsibility: announce "a new, tested image is
+        # ready" to the deployment repository via a repository_dispatch
+        # event, carrying the exact image tag as a payload. CI does NOT
+        # decide whether/when/where a deployment happens next - that
+        # decision belongs entirely to the deploy repo (see cd.yml there),
+        # which can choose to auto-deploy, require manual approval, or
+        # ignore the notification entirely. This keeps the boundary between
+        # "build automation" and "deployment automation" clean, which is the
+        # whole point of splitting the repos.
+        #
+        # DEPLOY_REPO_PAT is a GitHub Personal Access Token (with
+        # `repo` scope on cloud-agnostic-deploy) stored as a secret in THIS
+        # repo - required because the built-in GITHUB_TOKEN cannot trigger
+        # workflows in a DIFFERENT repository, only its own.

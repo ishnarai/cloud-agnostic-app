@@ -1,0 +1,42 @@
+# =============================================================================
+# test.yml - REUSABLE workflow
+# =============================================================================
+# This workflow does ONE job: run the test suite. It is never triggered
+# directly by a push - it only runs when another workflow (ci.yml) CALLS it
+# via `workflow_call`. This is the enterprise pattern for building small,
+# single-responsibility, composable pipeline building blocks instead of one
+# giant monolithic workflow file.
+
+name: Test
+
+on:
+  workflow_call:
+    # Declaring `workflow_call` as a trigger (instead of `push` or
+    # `pull_request`) is what makes this workflow "reusable" - it exposes
+    # itself as a callable unit that ci.yml can invoke with `uses:`.
+    outputs:
+      tests_passed:
+        description: "Whether the test suite passed"
+        value: ${{ jobs.test.outputs.result }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.run-tests.outcome }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        id: run-tests
+        run: python -m pytest tests/ -v

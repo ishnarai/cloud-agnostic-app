@@ -1,0 +1,30 @@
+# --- Version control ---
+.git/
+.gitignore
+
+# --- Python artifacts ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- Local environment/secrets ---
+.env
+.env.local
+
+# --- Tests (not needed in production image) ---
+tests/
+
+# --- Infra-as-code (not needed inside the app container) ---
+terraform/
+k8s/
+
+# --- CI/CD config (not needed inside the app container) ---
+.github/
+
+# --- Docs ---
+README.md
+
+# --- IDE clutter ---
+.vscode/
+.idea/
