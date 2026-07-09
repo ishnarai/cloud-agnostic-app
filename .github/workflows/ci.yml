@@ -1,17 +1,22 @@
-name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
 jobs:
   build:
     uses: ./.github/workflows/build.yml
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  verify-build:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display pushed Docker image
+        run: |
+          echo "=========================================="
+          echo "Docker image successfully built and pushed"
+          echo "Repository : ${{ needs.build.outputs.image_repository }}"
+          echo "Tag        : ${{ needs.build.outputs.image_tag }}"
+          echo "Full Image : ${{ needs.build.outputs.image }}"
+          echo "=========================================="
 
   notify-deploy-repo:
     needs: build
