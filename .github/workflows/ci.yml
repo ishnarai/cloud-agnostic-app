@@ -2,27 +2,88 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
+
   build:
+
+    name: Build Application
+
     uses: ./.github/workflows/build.yml
+
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
-  notify-deploy-repo:
+  build-summary:
+
+    name: Build Summary
+
     needs: build
+
     runs-on: ubuntu-latest
+
     if: github.ref == 'refs/heads/main'
+
     steps:
-      - name: Trigger deployment repository
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.DEPLOY_REPO_PAT }}
-          repository: ${{ github.repository_owner }}/cloud-agnostic-deploy
-          event-type: app-image-built
-          client-payload: '{"image_tag": "${{ needs.build.outputs.image_tag }}", "commit_sha": "${{ github.sha }}"}'
+
+      - name: Display Build Information
+
+        run: |
+
+          echo ""
+          echo "=============================================="
+          echo "      CLOUD AGNOSTIC APPLICATION - CI"
+          echo "=============================================="
+          echo ""
+
+          echo "Repository"
+          echo "${{ github.repository }}"
+          echo ""
+
+          echo "Branch"
+          echo "${{ github.ref_name }}"
+          echo ""
+
+          echo "Commit"
+          echo "${{ github.sha }}"
+          echo ""
+
+          echo "Docker Image"
+          echo "${{ needs.build.outputs.image_tag }}"
+          echo ""
+
+          echo "Docker image successfully pushed to Docker Hub."
+          echo ""
+
+          echo "Next Step:"
+          echo "Open the Deployment Repository."
+          echo ""
+
+          echo "Actions"
+          echo "↓"
+
+          echo "Run Workflow"
+          echo ""
+
+          echo "Select Cloud Provider"
+
+          echo "AWS"
+
+          echo "Azure"
+
+          echo "GCP"
+
+          echo ""
+
+          echo "Paste the image tag shown above."
+
+          echo ""
+
+          echo "=============================================="

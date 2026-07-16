@@ -1,52 +1,138 @@
 # =============================================================================
-# build.yml - REUSABLE workflow
+# build.yml - REUSABLE WORKFLOW
 # =============================================================================
-# Builds the Docker image and pushes it to DOCKER HUB, tagged with the
-# commit SHA.
+# Builds and pushes the Docker image to Docker Hub.
+# Generates versioned image tags in the format:
+#
+# cloud-agnostic-YYYYMMDD.001
+#
+# Example:
+# ishnarai/cloud-agnostic-app:cloud-agnostic-20260716.001
+#
+# Returns the FULL image reference to ci.yml.
+# =============================================================================
 
 name: Build and Push Image
 
 on:
   workflow_call:
+
     outputs:
       image_tag:
-        description: "The full image reference that was pushed (registry/name:sha)"
+        description: "Full Docker image reference"
         value: ${{ jobs.build.outputs.image_tag }}
+
     secrets:
       DOCKERHUB_USERNAME:
         required: true
+
       DOCKERHUB_TOKEN:
         required: true
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/cloud-agnostic-app
+  IMAGE_REPOSITORY: ${{ secrets.DOCKERHUB_USERNAME }}/cloud-agnostic-app
 
 jobs:
+
   build:
+
     runs-on: ubuntu-latest
+
     outputs:
-      image_tag: ${{ steps.set-tag.outputs.image_tag }}
+      image_tag: ${{ steps.image.outputs.full_image }}
 
     steps:
-      - name: Checkout code
+
+      ####################################################################
+      # Checkout Repository
+      ####################################################################
+
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
+      ####################################################################
+      # Generate Versioned Image Tag
+      ####################################################################
+
+      - name: Generate Image Tag
+        id: image
+        shell: bash
+
+        run: |
+
+          DATE=$(date +%Y%m%d)
+
+          BUILD_NUMBER=$(printf "%03d" ${GITHUB_RUN_NUMBER})
+
+          IMAGE_TAG="cloud-agnostic-${DATE}.${BUILD_NUMBER}"
+
+          FULL_IMAGE="${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+
+          echo "tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "full_image=${FULL_IMAGE}" >> "$GITHUB_OUTPUT"
+
+      ####################################################################
+      # Login to Docker Hub
+      ####################################################################
+
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
+
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push image
+      ####################################################################
+      # Build & Push Docker Image
+      ####################################################################
+
+      - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
+
         with:
           context: .
-          file: Dockerfile
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.IMAGE_NAME }}:latest
 
-      - name: Set output image tag
-        id: set-tag
-        run: echo "image_tag=${{ env.IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          file: Dockerfile
+
+          push: true
+
+          tags: |
+            ${{ steps.image.outputs.full_image }}
+            ${{ env.IMAGE_REPOSITORY }}:latest
+
+      ####################################################################
+      # Verify Docker Image
+      ####################################################################
+
+      - name: Verify Generated Image
+
+        run: |
+
+          echo ""
+          echo "========================================"
+          echo "Docker Build Summary"
+          echo "========================================"
+
+          echo ""
+
+          echo "Repository"
+          echo "${{ env.IMAGE_REPOSITORY }}"
+
+          echo ""
+
+          echo "Generated Image Tag"
+          echo "${{ steps.image.outputs.tag }}"
+
+          echo ""
+
+          echo "Full Image"
+
+          echo "${{ steps.image.outputs.full_image }}"
+
+          echo ""
+
+          echo "Image successfully pushed to Docker Hub."
+
+          echo ""
+
+          echo "========================================"
